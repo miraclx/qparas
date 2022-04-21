@@ -160,10 +160,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let new_paged_discriminant = last_entry.and_then(|last| {
                     let mut res = vec![];
-                    if let Some(id) = last.get("_id").and_then(|id| id.as_str()) {
-                        res.push(("_id_next".to_string(), id.to_string()));
-                    }
-                    if let Some((ref selectors, _)) = sort_spec {
+                    let default_id_spec = Some((vec!["_id"], ""));
+                    let mut specs = [&default_id_spec, &sort_spec].into_iter();
+                    while let Some(Some((ref selectors, _))) = specs.next() {
                         let mut entry = Some(last);
                         let mut selectors = selectors.iter();
                         let mut last_used_selector = None;
