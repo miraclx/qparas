@@ -138,12 +138,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
-                last.replace(page.results.last().map(|x| &x["_id"]).cloned());
+                last.replace(page.results.last().and_then(|x| x.get("_id")).cloned());
                 collection.extend(page.results);
                 info!(
-                    "got page {}, total entries = {}",
-                    paged_offset.0,
-                    collection.len()
+                    "got page {}, total entries = {}, offset = {:?}",
+                    n_page,
+                    collection.len(),
+                    last
                 );
             }
         }
