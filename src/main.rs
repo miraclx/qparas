@@ -40,6 +40,7 @@
 
 use std::io::{self, Write};
 
+use log::{debug, info};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -65,6 +66,8 @@ const PARAS_URL: &str = "https://api-v2-mainnet.paras.id";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    env_logger::init();
+
     let args = std::env::args().skip(1).collect::<Vec<_>>();
 
     let mut result = json!([]);
@@ -77,6 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .collect::<Option<Vec<_>>>()
         .ok_or("invalid query arg")?;
 
+    debug!("user queries: {:?}", queries);
+
     let client = reqwest::Client::new();
 
     let url = format!(
@@ -84,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::env::var("PARAS_URL").as_deref().unwrap_or(PARAS_URL),
         path[0]
     );
+    info!("base url: {}", url);
 
     let request = client
         .get(url)
@@ -115,13 +121,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => {}
         }
 
-        let response = request.send().await?;
+        let request = request.build()?;
+
+        info!("send request: {}", request.url());
+
+        let response = client.execute(request).await?;
 
         let (n_page, last) = &mut paged_offset;
 
         *n_page += 1;
         match response.json().await? {
             ParasResponse::Value(value) => {
+                info!("received unpaged response");
                 result = value;
                 last.replace(None);
             }
@@ -129,6 +140,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
                 last.replace(page.results.last().map(|x| &x["_id"]).cloned());
                 collection.extend(page.results);
+                info!(
+                    "got page {}, total entries = {}",
+                    paged_offset.0,
+                    collection.len()
+                );
             }
         }
     }
