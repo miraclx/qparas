@@ -44,20 +44,18 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 #[derive(Debug, Deserialize)]
-struct ParasResponse {
-    // status: u8,
-    data: ResponseData,
-}
-
-#[derive(Debug, Deserialize)]
 #[serde(untagged)]
-enum ResponseData {
-    Paged(PagedResponseData),
-    Unexpected(Value),
+enum ParasResponse {
+    Paged {
+        // status: u8,
+        #[serde(rename = "data")]
+        page: PagedData,
+    },
+    Value(Value),
 }
 
 #[derive(Debug, Deserialize)]
-struct PagedResponseData {
+struct PagedData {
     results: Vec<Value>,
     // skip: u8,
     // limit: u8,
@@ -81,8 +79,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let client = reqwest::Client::new();
 
+    let url = format!(
+        "{}/{}",
+        std::env::var("PARAS_URL").as_deref().unwrap_or(PARAS_URL),
+        path[0]
+    );
+
     let request = client
-        .get(format!("{}/{}", PARAS_URL, path[0]))
+        .get(url)
         .query(&[("__limit", "30")])
         .query(&queries[..]);
 
@@ -95,9 +99,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             stderr,
             "\x1b[K\x1b[38;5;249m(Page {}: {} entries)\x1b[0m\x1b[G",
             paged_offset.0,
-            result
-                .as_array()
-                .map_or_else(|| result.as_object().map_or(0, |o| o.len()), |c| c.len())
+            result.as_array().map_or_else(
+                || result.as_object().map_or(0, |o| !o.is_empty() as usize),
+                |c| c.len()
+            )
         )?;
 
         let mut request = request.try_clone().ok_or("request clone")?;
@@ -112,22 +117,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let response = request.send().await?;
 
-        let ParasResponse { data, .. } = response.json().await?;
+        let (n_page, last) = &mut paged_offset;
 
-        match data {
-            ResponseData::Paged(page) => {
-                let collection = result.as_array_mut().ok_or("unexpected")?;
-                let (n_page, last) = &mut paged_offset;
-                last.replace(page.results.last().map(|x| &x["_id"]).cloned());
-                *n_page += 1;
-                collection.extend(page.results);
-
-                continue;
+        *n_page += 1;
+        match response.json().await? {
+            ParasResponse::Value(value) => {
+                result = value;
+                last.replace(None);
             }
-            ResponseData::Unexpected(value) => result = value,
-        };
-
-        break;
+            ParasResponse::Paged { page } => {
+                let collection = result.as_array_mut().ok_or("unexpected")?;
+                last.replace(page.results.last().map(|x| &x["_id"]).cloned());
+                collection.extend(page.results);
+            }
+        }
     }
 
     write!(stderr, "\x1b[K")?; // clean the previous progress bar
@@ -139,9 +142,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         stderr,
         "(Pages: {}, Entries: {})",
         paged_offset.0,
-        result
-            .as_array()
-            .map_or_else(|| result.as_object().map_or(0, |o| o.len()), |c| c.len())
+        result.as_array().map_or_else(
+            || result.as_object().map_or(0, |o| !o.is_empty() as usize),
+            |c| c.len()
+        )
     )?;
 
     Ok(())
