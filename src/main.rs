@@ -70,6 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = std::env::args().skip(1).collect::<Vec<_>>();
 
+    let mut indexed_ids = std::collections::HashSet::new();
     let mut result = json!([]);
 
     let (path, queries) = args.split_at(1);
@@ -79,6 +80,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|query| query.split_once("="))
         .collect::<Option<Vec<_>>>()
         .ok_or("invalid query arg")?;
+
+    // "__sort=metadata.score::-1"
+    // ["__sort", [["metadata", "score"], "-1"]]
+    // returns: [["metadata", "score"], "-1"]
+    let sort_spec = queries
+        .iter()
+        .find(|(k, _)| *k == "__sort")
+        .and_then(|(_, spec)| spec.split_once("::"))
+        .map(|(k, v)| (k.split(".").collect::<Vec<_>>(), v))
+        .map(|(k, v)| if k.is_empty() { Err("") } else { Ok((k, v)) })
+        .transpose()?;
 
     debug!("user queries: {:?}", queries);
 
@@ -117,12 +129,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut request = request.try_clone().ok_or("request clone")?;
 
-        match paged_offset.1 {
-            Some(Some(ref keys)) => {
+        let (n_page, paged_discriminant) = &mut paged_offset;
+
+        match paged_discriminant {
+            Some(Some(paged_discriminant)) => {
                 request
                     .url_mut()
                     .query_pairs_mut()
-                    .extend_pairs(Vec::as_slice(&keys));
+                    .extend_pairs(Vec::as_slice(paged_discriminant));
             }
             Some(None) => break,
             _ => {}
@@ -132,30 +146,63 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let response = client.execute(request).await?;
 
-        let (n_page, last) = &mut paged_offset;
-
         *n_page += 1;
         match response.json().await? {
             ParasResponse::Value(value) => {
                 info!("received unpaged response");
                 result = value;
-                last.replace(None);
+                paged_discriminant.replace(None);
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
-                last.replace(page.results.last().and_then(|last| {
+
+                let last_entry = page.results.last();
+
+                let new_paged_discriminant = last_entry.and_then(|last| {
                     let mut res = vec![];
                     if let Some(id) = last.get("_id").and_then(|id| id.as_str()) {
                         res.push(("_id_next".to_string(), id.to_string()));
-                    };
+                    }
+                    if let Some((ref selectors, _)) = sort_spec {
+                        let mut entry = Some(last);
+                        let mut selectors = selectors.iter();
+                        let mut last_used_selector = None;
+                        while let (Some(parent), Some(selector)) = (entry, selectors.next()) {
+                            last_used_selector.replace(selector);
+                            entry = parent.get(selector);
+                        }
+                        if let (Some(val), Some(selector)) = (entry, last_used_selector) {
+                            // __sort=metadata.score::-1 will add score_next=652.3842
+                            if let Some(val) = val
+                                .as_str()
+                                .map(|s| s.to_string())
+                                .or_else(|| val.as_f64().map(|s| s.to_string()))
+                            {
+                                res.push((format!("{}_next", selector), val));
+                            }
+                        }
+                    }
                     Some(res)
+                });
+
+                paged_discriminant.replace(new_paged_discriminant);
+                let mut ids = vec![];
+                collection.extend(page.results.into_iter().filter(|entry| {
+                    entry
+                        .get("_id")
+                        .and_then(|entry| entry.as_str())
+                        .map_or(true, |id| {
+                            ids.push(id.to_string());
+                            !indexed_ids.contains(id)
+                        })
                 }));
-                collection.extend(page.results);
+                indexed_ids.extend(ids);
+
                 info!(
                     "got page {}, total entries = {}, offset = {:?}",
                     n_page,
                     collection.len(),
-                    last
+                    paged_discriminant
                 );
             }
         }
