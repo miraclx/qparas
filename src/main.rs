@@ -185,7 +185,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Some(res)
                 });
 
-                paged_discriminant.replace(new_paged_discriminant);
                 let mut ids = vec![];
                 collection.extend(page.results.into_iter().filter(|entry| {
                     entry
@@ -196,7 +195,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             !indexed_ids.contains(id)
                         })
                 }));
+                let pre_length = indexed_ids.len();
                 indexed_ids.extend(ids);
+                if indexed_ids.len() == pre_length {
+                    paged_discriminant.replace(None);
+                } else {
+                    paged_discriminant.replace(new_paged_discriminant);
+                }
 
                 info!(
                     "got page {}, total entries = {}, offset = {:?}",
