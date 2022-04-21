@@ -82,8 +82,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     debug!("user queries: {:?}", queries);
 
-    let client = reqwest::Client::new();
-
     let url = format!(
         "{}/{}",
         std::env::var("PARAS_URL").as_deref().unwrap_or(PARAS_URL),
@@ -91,10 +89,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     info!("base url: {}", url);
 
-    let request = client
-        .get(url)
-        .query(&[("__limit", "30")])
-        .query(&queries[..]);
+    let client = reqwest::Client::new();
+
+    let mut request = client.get(url).build()?;
+
+    request
+        .url_mut()
+        .query_pairs_mut()
+        .append_pair("__limit", "30")
+        .extend_pairs(queries.iter())
+        .finish();
 
     let mut paged_offset = (0, None);
 
@@ -114,14 +118,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut request = request.try_clone().ok_or("request clone")?;
 
         match paged_offset.1 {
-            Some(Some(ref offset)) => {
-                request = request.query(&[("_id_next", offset)]);
+            Some(Some(ref keys)) => {
+                request
+                    .url_mut()
+                    .query_pairs_mut()
+                    .extend_pairs(Vec::as_slice(&keys));
             }
             Some(None) => break,
             _ => {}
         }
-
-        let request = request.build()?;
 
         info!("send request: {}", request.url());
 
@@ -138,7 +143,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
-                last.replace(page.results.last().and_then(|x| x.get("_id")).cloned());
+                last.replace(page.results.last().and_then(|last| {
+                    let mut res = vec![];
+                    if let Some(id) = last.get("_id").and_then(|id| id.as_str()) {
+                        res.push(("_id_next".to_string(), id.to_string()));
+                    };
+                    Some(res)
+                }));
                 collection.extend(page.results);
                 info!(
                     "got page {}, total entries = {}, offset = {:?}",
