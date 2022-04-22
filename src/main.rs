@@ -97,6 +97,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|(k, v)| if k.is_empty() { Err("") } else { Ok((k, v)) })
         .transpose()?;
 
+    let min_spec = queries
+        .iter()
+        .find(|(k, _)| *k == "__min")
+        .map(|(_, v)| v.parse::<usize>())
+        .transpose()?;
+
     debug!("user queries: {:?}", queries);
 
     let url = format!(
@@ -163,14 +169,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 let pre_length = collection.len();
                 collection.extend(results);
-                if collection.len() == pre_length {
-                    paged_discriminant.replace(None);
-                } else {
-                    paged_discriminant.replace(Some(vec![(
-                        "__skip".to_string(),
-                        collection.len().to_string(),
-                    )]));
-                }
+                paged_discriminant.replace(match collection.len() {
+                    l if l == pre_length => None,
+                    l if min_spec.map_or(false, |min| l >= min) => None,
+                    _ => Some(vec![("__skip".to_string(), collection.len().to_string())]),
+                });
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
@@ -215,11 +218,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }));
                 let pre_length = indexed_ids.len();
                 indexed_ids.extend(ids);
-                if indexed_ids.len() == pre_length {
-                    paged_discriminant.replace(None);
-                } else {
-                    paged_discriminant.replace(new_paged_discriminant);
-                }
+                paged_discriminant.replace(match indexed_ids.len() {
+                    l if l == pre_length => None,
+                    l if min_spec.map_or(false, |min| l >= min) => None,
+                    _ => new_paged_discriminant,
+                });
 
                 info!(
                     "got page {}, total entries = {}, offset = {:?}",
