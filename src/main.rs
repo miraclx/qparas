@@ -76,6 +76,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut indexed_ids = std::collections::HashSet::new();
     let mut result = json!([]);
 
+    if args.is_empty() {
+        Err("expected arguments")?;
+    }
+
     let (path, queries) = args.split_at(1);
 
     let queries = queries
