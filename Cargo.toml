@@ -5,7 +5,7 @@ authors = ["Miraculous Owonubi <omiraculous@gmail.com>"]
 edition = "2021"
 rust-version = "1.56.0"
 license = "MIT OR Apache-2.0"
-description = "Query the Paras.id API, returning JSON data"
+description = "Query the Paras.id API, returning unpaginated JSON data"
 
 [dependencies]
 log = "0.4.16"

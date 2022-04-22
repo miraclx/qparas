@@ -1,6 +1,6 @@
 # QParas
 
-Query the [Paras](https://paras.id) API, resolving paginated data and returning full JSON data.
+Query the [Paras](https://paras.id) API, returning unpaginated JSON data.
 
 See <https://parashq.github.io> for a broader list of queries and their respective parameters.
 
