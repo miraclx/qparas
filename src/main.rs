@@ -2,41 +2,42 @@
 //!
 //! Query the Paras.id API, returning JSON data.
 //!
+//! See <https://parashq.github.io> for a broader list of queries and their respective parameters.
+//!
 //! ## Usage
 //!
-//! See <https://parashq.github.io/>
 //!
 //! ```text
 //! $ qparas [query] [params...]
 //! ```
 //!
-//! ## Example query: `token-series`
+//! ## Examples
 //!
-//! ```console
-//! $ qparas token-series [params...]
-//! ```
+//! - List all tokens for a particular collection that are for sale.
 //!
-//! - `collection_id`=`mint.havendao.near`
-//! - `exclude_total_burn`=`true`
-//! - `lookup_token`=`true`
-//! - `contract_id`=`x.paras.near`
-//! - `title`=`Dino Kid`
-//! - `token_series_id`=`1`
-//! - `min_price`=`1100000000000000000000001`
-//! - `max_price`=`1100000000000000000000001`
-//! - `creator_id`=`hdriqi`
-//! - `is_verified`=`true`
-//! - `creator_id`=`afiqshofy.near`
-//! - `category_id`=`card4card-nov-21`
-//! - `collection_search`=`fiction`
-//! - `owner_id`=`irfi.near`
-//! - `search`=`key to paras`
-//! - `attributes`[`kind]=Normies`
-//! - `null`=`null`
-//! - Qualifiers
-//!   - `__sort`=`lowest_price::1`
-//!   - `__skip`=`0`
-//!   - `__limit`=`1`
+//!   ```console
+//!   $ qparas token-series collection_id=mint.havendao.near min_price=0 __sort=metadata.score::-1
+//!   ```
+//!
+//!   - `__sort=metadata.score::-1`: Sort by rarity score in descending order.
+//!
+//! - Get the two most recent price updates for a single token.
+//!
+//!   ```console
+//!   $ qparas activities contract_id=mint.havendao.near token_id=253 type=add_market_data __limit=2 __min=2
+//!   ```
+//!
+//!   - `__limit=2`: Ask the server to return two results per page.
+//!   - `__min=2`: Return at least 2 results.
+//!
+//! - Get the 50 most recent activities for a collection.
+//!
+//!   ```console
+//!   $ qparas collection-activities collection_id=mint.havendao.near __limit=25 __min=50
+//!   ```
+//!
+//!   - `__limit=50`: Ask the server to return 25 results per page.
+//!   - `__min=50`: Return at least 50 results.
 
 use std::io::{self, Write};
 
