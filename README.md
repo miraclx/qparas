@@ -6,6 +6,10 @@ Query the [Paras](https://paras.id) API, returning JSON data.
 
 See <https://parashq.github.io> for a broader list of queries and their respective parameters.
 
+## Demo
+
+[![ASCII Demo](https://github.com/miraclx/qparas/raw/master/media/demo.gif)](https://asciinema.org/a/489184?autoplay=1 "Click to view ASCII")
+
 ## Installation
 
 First, install Rust and Cargo. See <https://rustup.rs/>.
