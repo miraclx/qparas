@@ -91,8 +91,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .iter()
         .find(|(k, _)| *k == "__sort")
         .and_then(|(_, spec)| spec.split_once("::"))
-        .map(|(k, v)| (k.split(".").collect::<Vec<_>>(), v))
-        .map(|(k, v)| if k.is_empty() { Err("") } else { Ok((k, v)) })
+        .map(|(k, v)| {
+            if k.is_empty() {
+                Err("invalid sort key spec")
+            } else {
+                Ok((k.split(".").collect::<Vec<_>>(), v))
+            }
+        })
         .transpose()?;
 
     let min_spec = queries
