@@ -121,6 +121,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if queries.iter().find(|(k, _)| *k == "__limit").is_none() {
             url.append_pair("__limit", "30");
         }
+        if sort_spec.is_none() {
+            url.append_pair("__sort", "_id::1");
+        }
         url.extend_pairs(queries.iter());
         url.finish();
     }
