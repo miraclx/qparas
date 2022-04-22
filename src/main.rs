@@ -1,15 +1,12 @@
 //! # QParas
 //!
-//! Query the Paras.id API, returning JSON data.
+//! Query the [Paras](https://paras.id) API, resolving paginated data and returning full JSON data.
 //!
 //! See <https://parashq.github.io> for a broader list of queries and their respective parameters.
 //!
-//! ## Usage
+//! ## Demo
 //!
-//!
-//! ```text
-//! $ qparas [query] [params...]
-//! ```
+//! [![ASCII Demo](https://github.com/miraclx/qparas/raw/master/media/demo.gif)](https://asciinema.org/a/489184?autoplay=1 "Click to view ASCII")
 //!
 //! ## Examples
 //!
