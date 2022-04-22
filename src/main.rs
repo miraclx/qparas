@@ -116,12 +116,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut request = client.get(url).build()?;
 
-    request
-        .url_mut()
-        .query_pairs_mut()
-        .append_pair("__limit", "30")
-        .extend_pairs(queries.iter())
-        .finish();
+    {
+        let mut url = request.url_mut().query_pairs_mut();
+        if queries.iter().find(|(k, _)| *k == "__limit").is_none() {
+            url.append_pair("__limit", "30");
+        }
+        url.extend_pairs(queries.iter());
+        url.finish();
+    }
 
     let mut paged_offset = (0, None);
 
