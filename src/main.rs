@@ -52,6 +52,11 @@ enum ParasResponse {
         #[serde(rename = "data")]
         page: PagedData,
     },
+    Window {
+        // status: u8,
+        #[serde(rename = "data")]
+        results: Vec<Value>,
+    },
     Value(Value),
 }
 
@@ -152,6 +157,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 info!("received unpaged response");
                 result = value;
                 paged_discriminant.replace(None);
+            }
+            ParasResponse::Window { results } => {
+                let collection = result.as_array_mut().ok_or("unexpected")?;
+
+                let pre_length = collection.len();
+                collection.extend(results);
+                if collection.len() == pre_length {
+                    paged_discriminant.replace(None);
+                } else {
+                    paged_discriminant.replace(Some(vec![(
+                        "__skip".to_string(),
+                        collection.len().to_string(),
+                    )]));
+                }
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
