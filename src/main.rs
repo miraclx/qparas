@@ -186,6 +186,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     l if min_spec.map_or(false, |min| l >= min) => None,
                     _ => Some(vec![("__skip".to_string(), collection.len().to_string())]),
                 });
+                info!(
+                    "got window {}, total entries = {}, offset = {:?}",
+                    n_page,
+                    collection.len(),
+                    paged_discriminant
+                );
             }
             ParasResponse::Paged { page } => {
                 let collection = result.as_array_mut().ok_or("unexpected")?;
