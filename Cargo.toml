@@ -3,9 +3,12 @@ name = "qparas"
 version = "0.1.0"
 authors = ["Miraculous Owonubi <omiraculous@gmail.com>"]
 edition = "2021"
-rust-version = "1.56.0"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/miraclx/qparas"
 description = "Query the Paras.id API, returning unpaginated JSON data"
+categories = ["command-line-utilities"]
+keywords = ["paras", "api", "near", "nft", "async"]
+rust-version = "1.56.0"
 
 [dependencies]
 log = "0.4.16"
